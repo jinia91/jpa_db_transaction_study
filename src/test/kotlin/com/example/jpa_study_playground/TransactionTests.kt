@@ -94,4 +94,33 @@ class TransactionTests {
 
         getBalanceJob.get()
     }
+
+    @Test
+    fun `READ_UNCOMMITTED에서 Phantom Read Test`() {
+        val initialBalance = 1000L
+        val additionalAccountBalance = 2000L
+
+        val account1 = accountService.createAccount(initialBalance)
+        val account2 = accountService.createAccount(initialBalance)
+        em.clear()
+
+        val getAccountsExecutor = Executors.newSingleThreadExecutor()
+        val getAccountsJob = CompletableFuture.supplyAsync({
+            log.info("스레드 A : 계좌들 조회하고 로깅")
+            accountService.testWithReadUnCommittedForReplicatingPhantomRead(initialBalance)
+        }, getAccountsExecutor)
+
+        Thread.sleep(1000)
+
+        val addAccountExecutor = Executors.newSingleThreadExecutor()
+        val addAccountJob = CompletableFuture.runAsync({
+            log.info("스레드 B : 새 계좌 생성")
+            accountService.createAccount(additionalAccountBalance)
+        }, addAccountExecutor)
+
+        addAccountJob.get()
+        log.info("스레드 B : 새 계좌 생성 완료")
+
+        getAccountsJob.get()
+    }
 }
