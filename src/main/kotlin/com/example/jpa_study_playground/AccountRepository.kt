@@ -10,4 +10,5 @@ interface AccountRepository : JpaRepository<Account, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id = :id")
     fun findByIdWithLock(id: Long): Account?
+    fun findAllByBalance(balance: Long): List<Account>
 }

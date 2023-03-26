@@ -10,8 +10,8 @@ import javax.persistence.EntityManager
 private val log = KotlinLogging.logger {}
 
 @Service
-@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRES_NEW)
-class AccountServiceWithTransactionalReadCommitted(
+@Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRES_NEW)
+class AccountServiceWithTransactionalRepeatableRead(
     private val accountRepository: AccountRepository,
     private val em: EntityManager,
 ) {
@@ -60,7 +60,7 @@ class AccountServiceWithTransactionalReadCommitted(
         return tmp
     }
 
-    fun getBalanceWithSharedLockForTestingSharedLock(accountId: Long): Long? {
+    fun getBalanceWithSharedLockAndLag(accountId: Long): Long? {
         val balance = accountRepository.findByIdWithLock(accountId)?.balance
         em.flush()
         Thread.sleep(7000)
@@ -89,9 +89,9 @@ class AccountServiceWithTransactionalReadCommitted(
         return accountRepository.findById(accountId).orElse(null)?.balance
     }
 
-    fun findAllAndLogForReplicatingPhantomRead(accountId: Long) {
-        for(i in 1..3) {
-            accountRepository.findAll()
+    fun findAllAndLogForReplicatingPhantomRead(balance: Long) {
+        for(i in 1..10) {
+            accountRepository.findAllByBalance(balance)
                 .also { log.info { "$i 번째 조회시 전체 컬렉션 사이즈는 현재 ${it.size}" } }
             em.clear()
             Thread.sleep(1000)
