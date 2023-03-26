@@ -13,7 +13,6 @@ private val log = KotlinLogging.logger {}
 class AccountService(
     private val accountRepository: AccountRepository,
     private val em: EntityManager,
-//    private val transactionCommitLogTracer: TransactionCommitLogTracer
 ) {
 
     @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)

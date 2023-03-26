@@ -100,8 +100,8 @@ class TransactionTests {
         val initialBalance = 1000L
         val additionalAccountBalance = 2000L
 
-        val account1 = accountService.createAccount(initialBalance)
-        val account2 = accountService.createAccount(initialBalance)
+        accountService.createAccount(initialBalance)
+        accountService.createAccount(initialBalance)
         em.clear()
 
         val getAccountsExecutor = Executors.newSingleThreadExecutor()
@@ -115,7 +115,12 @@ class TransactionTests {
         val addAccountExecutor = Executors.newSingleThreadExecutor()
         val addAccountJob = CompletableFuture.runAsync({
             log.info("스레드 B : 새 계좌 생성")
-            accountService.createAccount(additionalAccountBalance)
+            val temp = accountService.createAccount(additionalAccountBalance)
+
+            Thread.sleep(1000)
+
+            log.info("스레드 B : 새 계좌 삭제")
+            accountService.deleteAccount(temp!!.id!!)
         }, addAccountExecutor)
 
         addAccountJob.get()
