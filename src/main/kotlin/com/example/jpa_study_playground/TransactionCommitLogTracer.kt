@@ -15,7 +15,7 @@ private val log = KotlinLogging.logger {}
 @Component
 class TransactionCommitLogTracer {
 
-    @Pointcut("@annotation(org.springframework.transaction.annotation.Transactional)")
+    @Pointcut("execution(* *(..)) && @within(org.springframework.transaction.annotation.Transactional)")
     fun transactionalMethods() {
     }
 
