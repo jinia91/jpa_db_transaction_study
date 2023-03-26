@@ -10,25 +10,23 @@ import javax.persistence.EntityManager
 private val log = KotlinLogging.logger {}
 
 @Service
-class AccountService(
+@Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
+class AccountServiceWithTransactionalReadUnCommitted(
     private val accountRepository: AccountRepository,
     private val em: EntityManager,
 ) {
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
     fun createAccount(initialBalance: Long): Account? {
         val account = Account(balance = initialBalance)
         account.balance = initialBalance
         return accountRepository.save(account)
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
     fun deleteAccount(accountId: Long) {
         return accountRepository.deleteById(accountId)
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
-    fun updateBalanceWithReadUnCommittedForReplicatingDirtyRead(accountId: Long, newBalance: Long) {
+    fun updateBalanceForReplicatingDirtyRead(accountId: Long, newBalance: Long) {
         val account: Account = accountRepository.findById(accountId).orElse(null) ?: throw Exception("Account not found")
         account.balance = newBalance
         accountRepository.save(account)
@@ -36,20 +34,17 @@ class AccountService(
         Thread.sleep(5000)
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
-    fun getBalanceWithReadUnCommittedForReplicatingDirtyRead(accountId: Long): Long? {
+    fun getBalanceForReplicatingDirtyRead(accountId: Long): Long? {
         return accountRepository.findById(accountId).orElse(null)?.balance
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
-    fun updateBalanceWithReadUnCommittedForReplicatingNonRepeatableRead(accountId: Long, newBalance: Long) {
+    fun updateBalanceForReplicatingNonRepeatableRead(accountId: Long, newBalance: Long) {
         val account: Account = accountRepository.findById(accountId).orElse(null) ?: throw Exception("Account not found")
         account.balance = newBalance
         accountRepository.save(account)
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
-    fun getBalanceRepeatableWithReadUnCommittedForNonRepeatableRead(accountId: Long): Long? {
+    fun getBalanceRepeatableForNonRepeatableRead(accountId: Long): Long? {
         for (i in 1..10) {
             accountRepository.findById(accountId).orElse(null)?.balance
                 .also { log.info { it } }
@@ -59,8 +54,7 @@ class AccountService(
         return accountRepository.findById(accountId).orElse(null)?.balance
     }
 
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED, propagation = Propagation.REQUIRES_NEW)
-    fun testWithReadUnCommittedForReplicatingPhantomRead(accountId: Long) {
+    fun findAllAndLogForReplicatingPhantomRead(accountId: Long) {
         for(i in 1..3) {
             accountRepository.findAll()
                 .also { log.info { "$i 번째 조회시 전체 컬렉션 사이즈는 현재 ${it.size}" } }
@@ -68,6 +62,4 @@ class AccountService(
             Thread.sleep(1000)
         }
     }
-
-
 }

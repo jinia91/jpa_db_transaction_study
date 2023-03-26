@@ -16,10 +16,10 @@ private val log = KotlinLogging.logger {}
 
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class TransactionTests {
+class ReadUnCommittedTransactionTests {
 
     @Autowired
-    lateinit var accountService: AccountService
+    lateinit var accountServiceWithTransactionalReadUnCommitted: AccountServiceWithTransactionalReadUnCommitted
 
     @Autowired
     lateinit var accountRepository: AccountRepository
@@ -38,14 +38,14 @@ class TransactionTests {
         val initialBalance = 1000L
         val updatedBalance = 2000L
 
-        val account = accountService.createAccount(initialBalance)
+        val account = accountServiceWithTransactionalReadUnCommitted.createAccount(initialBalance)
         val accountId = account!!.id!!
         em.clear()
 
         val updateBalanceExecutor = Executors.newSingleThreadExecutor()
         val updateBalanceJob = CompletableFuture.runAsync( {
             log.info { "스레드 A : 잔액 변경" }
-            accountService.updateBalanceWithReadUnCommittedForReplicatingDirtyRead(accountId, updatedBalance)
+            accountServiceWithTransactionalReadUnCommitted.updateBalanceForReplicatingDirtyRead(accountId, updatedBalance)
         }, updateBalanceExecutor)
 
         Thread.sleep(3000)
@@ -53,7 +53,7 @@ class TransactionTests {
         val getBalanceExecutor = Executors.newSingleThreadExecutor()
         val getBalanceJob = CompletableFuture.supplyAsync({
             log.info { "스레드 B : 잔액 조회" }
-            accountService.getBalanceWithReadUnCommittedForReplicatingDirtyRead(accountId)
+            accountServiceWithTransactionalReadUnCommitted.getBalanceForReplicatingDirtyRead(accountId)
         }, getBalanceExecutor)
 
         val returnedBalance = getBalanceJob.get()
@@ -72,14 +72,14 @@ class TransactionTests {
         val initialBalance = 1000L
         val updatedBalance = 2000L
 
-        val account = accountService.createAccount(initialBalance)
+        val account = accountServiceWithTransactionalReadUnCommitted.createAccount(initialBalance)
         val accountId = account!!.id!!
         em.clear()
 
         val getBalanceExecutor = Executors.newSingleThreadExecutor()
         val getBalanceJob = CompletableFuture.supplyAsync({
             log.info("스레드 A : 잔액 반복 조회 0.5초마다 총 10회")
-            accountService.getBalanceRepeatableWithReadUnCommittedForNonRepeatableRead(accountId)
+            accountServiceWithTransactionalReadUnCommitted.getBalanceRepeatableForNonRepeatableRead(accountId)
         }, getBalanceExecutor)
 
         Thread.sleep(1000)
@@ -87,7 +87,7 @@ class TransactionTests {
         val updateBalanceExecutor = Executors.newSingleThreadExecutor()
         val updateBalanceJob = CompletableFuture.runAsync({
             log.info("스레드 B : 잔액 변경")
-            accountService.updateBalanceWithReadUnCommittedForReplicatingNonRepeatableRead(accountId, updatedBalance)
+            accountServiceWithTransactionalReadUnCommitted.updateBalanceForReplicatingNonRepeatableRead(accountId, updatedBalance)
         }, updateBalanceExecutor)
         updateBalanceJob.get()
         log.info { "스레드 B : 트랜잭션 커밋 일어남" }
@@ -100,14 +100,14 @@ class TransactionTests {
         val initialBalance = 1000L
         val additionalAccountBalance = 2000L
 
-        accountService.createAccount(initialBalance)
-        accountService.createAccount(initialBalance)
+        accountServiceWithTransactionalReadUnCommitted.createAccount(initialBalance)
+        accountServiceWithTransactionalReadUnCommitted.createAccount(initialBalance)
         em.clear()
 
         val getAccountsExecutor = Executors.newSingleThreadExecutor()
         val getAccountsJob = CompletableFuture.supplyAsync({
             log.info("스레드 A : 계좌들 조회하고 로깅")
-            accountService.testWithReadUnCommittedForReplicatingPhantomRead(initialBalance)
+            accountServiceWithTransactionalReadUnCommitted.findAllAndLogForReplicatingPhantomRead(initialBalance)
         }, getAccountsExecutor)
 
         Thread.sleep(1000)
@@ -115,12 +115,12 @@ class TransactionTests {
         val addAccountExecutor = Executors.newSingleThreadExecutor()
         val addAccountJob = CompletableFuture.runAsync({
             log.info("스레드 B : 새 계좌 생성")
-            val temp = accountService.createAccount(additionalAccountBalance)
+            val temp = accountServiceWithTransactionalReadUnCommitted.createAccount(additionalAccountBalance)
 
             Thread.sleep(1000)
 
             log.info("스레드 B : 새 계좌 삭제")
-            accountService.deleteAccount(temp!!.id!!)
+            accountServiceWithTransactionalReadUnCommitted.deleteAccount(temp!!.id!!)
         }, addAccountExecutor)
 
         addAccountJob.get()
